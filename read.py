@@ -79,7 +79,7 @@ def do_a_temperature_read():
     Runs a temperature read, doesn't actually return or display anything
     """
     send_command(SKIP_ROM_BROADCAST, TEMPERATURE_READ)
-    print("running a temperature conversion (reading)")
+    # print("running a temperature conversion (reading)")
     while True:
         if send_byte(0xFF) > 0:
             break
@@ -97,9 +97,18 @@ def get_scratchpad():
     output["reserved_xx"] = send_byte(0xFF)
     output["reserved_10"] = send_byte(0xFF)
     output["crc"] = send_byte(0xFF)
-    # send_byte(0xFF) # needed? doc is vague about 9 or 10 scratch pad data points
-    output["temperature"] = ((output["temperature_msb"] << 8) + output["temperature_lsb"]) * 0.0625
     return output
+
+def get_temperature():
+    do_a_temperature_read()
+    send_command(SKIP_ROM_BROADCAST, READ_SCRATCHPAD)
+    temperature = send_byte(0xFF) # temperature lsb
+    temperature += send_byte(0xFF) << 8 # temperature msb
+    # you can apparently stop short reading and do a reset to ignore the rest of the scratch pad
+    # (next command will do a reset so just stop)
+    temperature *= 0.0625
+    return temperature
+
 
 def get_single_rom_code():
     print("ROM code:")
@@ -122,8 +131,6 @@ get_power_supply()
 
 get_single_rom_code()
 
-# temperature reading loop
 while True:
-    do_a_temperature_read()
-    print(get_scratchpad()["temperature"])
+    print(get_temperature())
     # time.sleep(60)
