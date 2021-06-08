@@ -14,11 +14,20 @@ ser.parity = 'N'
 ser.stopbits = 1
 ser.timeout = 0.1 # read timeout
 
+# ROM commands - where to send data
+SEARCH_ROM = 0xf0 # get rom code from all devices, may need running multiple times
+READ_ROM = 0x33 # reads the 64-bit rom code if a single device is connected
+MATCH_ROM = 0x55 # use this then a 64-bit rom code to specify a single device
+SKIP_ROM_BROADCAST = 0xcc # "skip rom" send to all devices
+ALARM_SEARCH = 0xec # only devices with an alarm flag set will reply
 
-ROM_BROADCAST = 0xcc # "skip rom" send to all devices
-
-COMMAND_TEMPERATURE_READ = 0x44
-COMMAND_READ_SCRATCHPAD = 0xbe
+# function commands
+TEMPERATURE_READ = 0x44
+READ_SCRATCHPAD = 0xbe
+WRITE_SCRATCHPAD = 0x4e # follow with 3 bytes to write, first to Th register, second to Tl register, third goes to config register
+COPY_SCRATCHPAD = 0x48 # copies scratchpad Th, Tl and config to EEPROM (will be loaded at boot time in future)
+RECALL_EEPROM = 0xb8 # loads Th, Tl, config registers from EEPROM
+READ_POWER_SUPPLY = 0xb4 # parasite devices will reply 0, properly powered will reply 1
 
 ser.open()
 if not ser.is_open:
@@ -69,7 +78,7 @@ def do_a_temperature_read():
     """
     Runs a temperature read, doesn't actually return or display anything
     """
-    send_command(ROM_BROADCAST, COMMAND_TEMPERATURE_READ)
+    send_command(SKIP_ROM_BROADCAST, TEMPERATURE_READ)
     print("running a temperature conversion (reading)")
     while True:
         if send_byte(0xFF) > 0:
@@ -78,7 +87,7 @@ def do_a_temperature_read():
 
 def get_scratchpad():
     output = {}
-    send_command(ROM_BROADCAST, COMMAND_READ_SCRATCHPAD)
+    send_command(SKIP_ROM_BROADCAST, READ_SCRATCHPAD)
     output["temperature_lsb"] = send_byte(0xFF)
     output["temperature_msb"] = send_byte(0xFF)
     output["th_register"] = send_byte(0xFF)
@@ -88,10 +97,30 @@ def get_scratchpad():
     output["reserved_xx"] = send_byte(0xFF)
     output["reserved_10"] = send_byte(0xFF)
     output["crc"] = send_byte(0xFF)
-    send_byte(0xFF) # needed? doc is vague about 9 or 10 scratch pad data points
+    # send_byte(0xFF) # needed? doc is vague about 9 or 10 scratch pad data points
     output["temperature"] = ((output["temperature_msb"] << 8) + output["temperature_lsb"]) * 0.0625
     return output
 
+def get_single_rom_code():
+    print("ROM code:")
+    reset()
+    send_byte(READ_ROM)
+    for _ in range(8):
+        print(hex(send_byte(0xff)), end=" ")
+    print()
+
+
+def get_power_supply():
+    send_command(SKIP_ROM_BROADCAST, READ_POWER_SUPPLY)
+    if send_byte(0xff) == 0xff:
+        print("All devices connected to proper power")
+    else:
+        print("Some devices connected as parasitic")
+
+
+get_power_supply()
+
+get_single_rom_code()
 
 # temperature reading loop
 while True:
