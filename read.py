@@ -1,9 +1,7 @@
 import glob
-import serial
 import sys
 import time
-import traceback
-import json
+import serial
 
 usb_ttys = glob.glob("/dev/ttyUSB*")
 port = usb_ttys[0]

@@ -1,6 +1,9 @@
 Works with a ds18b20 wired directly into a pl2303-ta cable with no resistors or diodes etc
+
 gnd -> gnd
 vcc -> vcc
 tx + rx -> 1-wire IO
+
+Other USB -> TTL UART devices will likely work
 
 https://www.maximintegrated.com/en/design/technical-documents/tutorials/2/214.html
