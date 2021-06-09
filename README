@@ -7,3 +7,5 @@ tx + rx -> 1-wire IO
 Other USB -> TTL UART devices will likely work
 
 https://www.maximintegrated.com/en/design/technical-documents/tutorials/2/214.html
+
+http://owfs.sourceforge.net/family.html
