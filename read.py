@@ -145,6 +145,8 @@ class Ds18b20():
         temperature += self.send_byte(0xFF) << 8 # temperature msb
         # you can apparently stop short reading and do a reset to ignore the rest of the scratch pad
         # (next command will do a reset so just stop)
+        # TODO: deal with negative/signed numbers
+        # TODO: OR the data down to the number of accuracy bits being used
         temperature *= 0.0625
         print(temperature)
 
@@ -181,10 +183,28 @@ class Ds18b20():
         else:
             print("Some devices connected as parasitic")
 
+    def set_accuracy(self, accuracy):
+        """
+        9-12 allowed, 12 default
+        """
+        if accuracy < 9 or accuracy > 12:
+            raise Exception("Only an accuracy of 9-12 bits is allowed")
+        scratchpad = ds.get_scratchpad() # get the current scratchpad data so we can pass tl and th the same as currently set
+        set_accuracy = accuracy - 9
+        set_accuracy = set_accuracy << 5
+        # OR to clear the accuracy bits then AND the new setting back in
+        new_config = (scratchpad["configuration"] & 0b10011111) | set_accuracy
+        ds.write_scratchpad(th=scratchpad["th_register"], tl=scratchpad["tl_register"], config=new_config)
+
+
 if __name__ == "__main__":
+    ds = Ds18b20()
+    # ds.set_accuracy(12)
+    # ds.close()
+
     while True:
-        print(time.ctime())
-        ds = Ds18b20()
+        ds.connect()
+        # print(time.ctime())
         # ds.get_power_supply()
         # ds.get_single_rom_code()
         # print(ds.get_scratchpad())
