@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import glob
 import sys
 import time
@@ -22,16 +23,21 @@ class Ds18b20():
     READ_POWER_SUPPLY = 0xb4 # parasite devices will reply 0, properly powered will reply 1
 
 
-    def __init__(self):
+    def __init__(self, port=None):
         self.ser = None
+        if port is not None:
+            self.port = port
+        else:
+            self.port = None
         self.connect()
 
     def connect(self):
-        usb_ttys = glob.glob("/dev/ttyUSB*")
-        port = usb_ttys[0]
+        if self.port is None:
+            usb_ttys = glob.glob("/dev/ttyUSB*")
+            self.port = usb_ttys[0]
 
         self.ser = serial.Serial()
-        self.ser.port = port
+        self.ser.port = self.port
         self.ser.baudrate = 115200
         self.ser.bytesize = 8
         self.ser.parity = 'N'
@@ -148,33 +154,39 @@ class Ds18b20():
         # TODO: deal with negative/signed numbers
         # TODO: OR the data down to the number of accuracy bits being used
         temperature *= 0.0625
-        print(temperature)
+        # print(time.time(), end=",")
+        # print(temperature)
+        return temperature
 
     def get_single_rom_code(self):
         rom_code = []
+        rom_code_bytes = b''
         self.reset()
         self.send_byte(Ds18b20.READ_ROM)
         for _ in range(8):
             abyte = self.send_byte(0xff)
             # print(hex(abyte))
+            rom_code_bytes = bytes([abyte]) + rom_code_bytes
             rom_code = [abyte] + rom_code
 
         crc = rom_code[0]
         serial = rom_code[1:7]
+        serial_bytes = rom_code_bytes[1:7]
         family_code = rom_code[7]
 
-        print("Serial number:", end=" ")
-        for abyte in serial:
-            print(hex(abyte), end=" ")
-        print()
+        # print("Serial number:", end=" ")
+        # for abyte in serial:
+        #     print(hex(abyte), end=" ")
+        # print()
 
-        print("Family code:", end=" ")
-        if family_code == 0x10:
-            print("DS18S20")
-        elif family_code == 0x28:
-            print("DS18B20")
-        else:
-            print("Unknown")
+        # print("Family code:", end=" ")
+        # if family_code == 0x10:
+        #     print("DS18S20")
+        # elif family_code == 0x28:
+        #     print("DS18B20")
+        # else:
+        #     print("Unknown")
+        return serial_bytes
 
     def get_power_supply(self):
         self.send_command(Ds18b20.SKIP_ROM_BROADCAST, Ds18b20.READ_POWER_SUPPLY)
@@ -197,17 +209,27 @@ class Ds18b20():
         ds.write_scratchpad(th=scratchpad["th_register"], tl=scratchpad["tl_register"], config=new_config)
 
 
-if __name__ == "__main__":
-    ds = Ds18b20()
+def main():
+    devices = {
+        b'\x01\x20\x10\xd9\x17\x38': "downstairs",
+        b'\x01\x20\x10\xeb\xce\xa0': "office"
+    }
     # ds.set_accuracy(12)
-    # ds.close()
 
     while True:
-        ds.connect()
-        # print(time.ctime())
-        # ds.get_power_supply()
-        # ds.get_single_rom_code()
-        # print(ds.get_scratchpad())
-        ds.get_temperature()
-        ds.close()
+        usb_ttys = glob.glob("/dev/ttyUSB*")
+        for port in usb_ttys:
+            ds = Ds18b20(port)
+            # ds.connect()
+            # print(time.ctime())
+            # ds.get_power_supply()
+            serial_num = ds.get_single_rom_code()
+            device = devices[serial_num]
+            # print(ds.get_scratchpad())
+            temperature = ds.get_temperature()
+            ds.close()
+            print(f'{time.time()},{device},{temperature}')
         time.sleep(60)
+
+if __name__ == "__main__":
+    main()
