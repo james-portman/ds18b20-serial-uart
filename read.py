@@ -216,6 +216,7 @@ def main():
     }
     # ds.set_accuracy(12)
 
+    print('timestamp,device,temperature')
     while True:
         usb_ttys = glob.glob("/dev/ttyUSB*")
         for port in usb_ttys:
@@ -224,7 +225,10 @@ def main():
             # print(time.ctime())
             # ds.get_power_supply()
             serial_num = ds.get_single_rom_code()
-            device = devices[serial_num]
+            if serial_num in devices:
+                device = devices[serial_num]
+            else:
+                device = serial_num.hex()
             # print(ds.get_scratchpad())
             temperature = ds.get_temperature()
             ds.close()
